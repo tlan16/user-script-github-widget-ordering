@@ -3,7 +3,7 @@
 // @namespace    http://tampermonkey.net/
 // @description  Display property id and listing id
 // @author       Frank Lan
-// @version      1.0
+// @version      1.1
 // @license      GPL-3.0 license
 // @match        https://github.com/*
 // @match        https://git.realestate.com.au/*
@@ -19,6 +19,16 @@
 
 (async function() {
     'use strict';
+    // Monkey patch console to prefix logs with [GitHub Widget Reorder] for easier debugging
+    // Most be at the top
+    const _console = window.console;
+    const log = (method, ...args) => _console[method]('[GitHub Widget Reorder]', ...args);
+    const console = {
+        log:   (...a) => log('log',   ...a),
+        info:  (...a) => log('info',  ...a),
+        warn:  (...a) => log('warn',  ...a),
+        error: (...a) => log('error', ...a),
+    };
 
     const main = () => waitFor(condition, action);
     main();
@@ -26,15 +36,6 @@
         // dataset.moved is on the old DOM node which is gone after navigation anyway
         // so no reset needed — the new page's element won't have the flag
         main();
-    });
-
-    // Monkey patch console to prefix logs with [GitHub Widget Reorder]
-    const console = window.console;
-    ['log', 'info', 'warn', 'error'].forEach(method => {
-        const original = console[method];
-        console[method] = (...args) => {
-            original.call(console, '[GitHub Widget Reorder]', ...args);
-        };
     });
 
     /**

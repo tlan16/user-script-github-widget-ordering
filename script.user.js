@@ -3,7 +3,7 @@
 // @namespace    http://tampermonkey.net/
 // @description  Display property id and listing id
 // @author       Frank Lan
-// @version      0.1
+// @version      0.2
 // @license      GPL-3.0 license
 // @match        https://github.com/*
 // @match        https://git.realestate.com.au/*
@@ -19,7 +19,14 @@
 
 (async function() {
     'use strict';
-    waitFor(condition, action);
+
+    const main = () => waitFor(condition, action);
+    main();
+    document.addEventListener('turbo:load', () => {
+        // dataset.moved is on the old DOM node which is gone after navigation anyway
+        // so no reset needed — the new page's element won't have the flag
+        main();
+    });
 
     /**
      * Polls until a condition is met, then runs a callback.
@@ -60,7 +67,7 @@
      * @returns {boolean}
      */
     function condition() {
-        return find_language_element() !== null && find_side_nav() !== null;
+        return find_language_element_side_nav_row() !== null && find_side_nav() !== null;
     }
 
     /**
@@ -68,7 +75,7 @@
      */
     function action() {
         const side_nav = find_side_nav();
-        const language_element = find_language_element();
+        const language_element = find_language_element_side_nav_row();
         if (!side_nav || !language_element) {
             throw new Error(`Expected to find both side_nav and language_element, but got: ${side_nav}, ${language_element}`);
         }
@@ -81,25 +88,31 @@
      * @return {void}
      */
     function move_language_widget_to_top(side_nav, language_element) {
+        if (language_element.dataset.moved === 'true') return;
+
         const first_child = side_nav.firstElementChild;
         if (first_child === language_element) {
-            console.log('Language widget is already at the top');
+            console.info('Language widget is already at the top');
+            language_element.dataset.moved = 'true';
             return;
         }
         side_nav.insertBefore(language_element, first_child);
-        console.log('Moved language widget to the top');
+        language_element.dataset.moved = 'true';
+        console.info('Moved language widget to the top');
     }
 
     /**
      * @returns {HTMLElement | null}
      */
-    function find_language_element() {
+    function find_language_element_side_nav_row() {
         const xpath = `//body//*[@data-partial-name="codeViewRepoRoute.Sidebar"]/*[contains(@class, "BorderGrid")]//h2[text()="Languages"]`
         const result = document.evaluate(xpath, document, null, XPathResult.FIRST_ORDERED_NODE_TYPE, null);
         const element = result.singleNodeValue;
         if (element instanceof HTMLElement) {
-            return element.closest('.BorderGrid');
+            console.info('Found language element in side nav row');
+            return element.closest('.BorderGrid-row');
         }
+        console.info('Could not find language element, cannot find side nav');
         return null;
     }
 
@@ -107,8 +120,9 @@
      * @returns {HTMLElement | null}
      */
     function find_side_nav() {
-        const language_element = find_language_element();
+        const language_element = find_language_element_side_nav_row();
         if (!language_element) return null;
+        console.info('Finding side nav by looking for closest .BorderGrid to language element');
         return language_element.closest('.BorderGrid');
     }
 })();
